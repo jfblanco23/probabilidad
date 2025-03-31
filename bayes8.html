@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teorema de Bayes</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --bg-color: #f9f9f9;
+            --text-color: #333;
+            --light-gray: #eee;
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+            --header-color: #27ae60;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            font-size: 1.8em;
+        }
+
+        h2 {
+            font-size: 1.4em;
+        }
+
+        .step {
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 5px;
+            background-color: white;
+            font-size: 0.95em;
+        }
+
+        .step.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .step.highlight {
+            background-color: #fef9e7;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .formula {
+            font-size: 1em;
+            margin: 12px 0;
+            padding: 8px;
+            background-color: var(--light-gray);
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .result {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-align: center;
+            padding: 12px;
+            background-color: #fef9e7;
+            border-left: 3px solid #f39c12;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        .complement {
+            text-decoration: overline;
+            padding-left: 1px;
+        }
+        
+        /* Ventanas flotantes mejoradas */
+        .floating-window {
+            position: fixed;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 100;
+            overflow: hidden;
+            resize: both;
+            border: 1px solid #ddd;
+            max-width: 90vw;
+            max-height: 90vh;
+            min-width: 250px;
+            min-height: 150px;
+        }
+        
+        .window-header {
+            background-color: var(--header-color);
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .window-close {
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        
+        .window-content {
+            width: 100%;
+            height: calc(100% - 36px);
+            overflow: auto;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        
+        /* Diagrama */
+        #tree-svg {
+            width: 100%;
+            height: 100%;
+            min-height: 200px;
+            cursor: grab;
+            touch-action: none;
+            overflow: hidden;
+        }
+        
+        #tree-svg:active {
+            cursor: grabbing;
+        }
+        
+        .node circle {
+            fill: #fff;
+            stroke-width: 2px;
+        }
+        
+        .node text {
+            font: 12px sans-serif;
+            font-weight: bold;
+        }
+        
+        .link {
+            fill: none;
+            stroke-width: 2px;
+        }
+        
+        /* Controles */
+        #controls-container {
+            top: 20px;
+            left: 20px;
+            width: 250px;
+            height: 180px;
+        }
+        
+        #tree-container {
+            top: 20px;
+            right: 20px;
+            width: 450px;
+            height: 350px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 3px;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+        }
+        
+        .value-display {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+            margin-left: 5px;
+            font-size: 0.85em;
+        }
+        
+        /* Botones flotantes */
+        .floating-btn {
+            position: fixed;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            z-index: 1000;
+            border: none;
+        }
+        
+        #toggle-controls-btn {
+            bottom: 60px;
+            left: 15px;
+        }
+        
+        #toggle-tree-btn {
+            bottom: 60px;
+            right: 15px;
+        }
+        
+        #next-step-btn {
+            bottom: 15px;
+            right: 15px;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <button id="toggle-controls-btn" class="floating-btn">Mostrar Controles</button>
+    <button id="toggle-tree-btn" class="floating-btn">Mostrar Diagrama</button>
+    <button id="next-step-btn" class="floating-btn">Siguiente Paso</button>
+    
+    <!-- Ventana de controles -->
+    <div id="controls-container" class="floating-window" style="display: none;">
+        <div class="window-header">
+            <span>Controles</span>
+            <span class="window-close" id="controls-close">×</span>
+        </div>
+        <div class="window-content">
+            <div class="control-group">
+                <label for="prevalence">Prevalencia (por 1000):</label>
+                <input type="range" id="prevalence" min="1" max="100" value="1" step="1">
+                <span class="value-display" id="prevalence-value">1</span>
+            </div>
+            <div class="control-group">
+                <label for="sensitivity">Sensibilidad (%):</label>
+                <input type="range" id="sensitivity" min="80" max="100" value="99" step="1">
+                <span class="value-display" id="sensitivity-value">99%</span>
+            </div>
+            <div class="control-group">
+                <label for="specificity">Especificidad (%):</label>
+                <input type="range" id="specificity" min="80" max="100" value="99" step="1">
+                <span class="value-display" id="specificity-value">99%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ventana del diagrama de árbol -->
+    <div id="tree-container" class="floating-window">
+        <div class="window-header">
+            <span>Diagrama de Árbol</span>
+            <span class="window-close" id="tree-close">×</span>
+        </div>
+        <div class="window-content">
+            <svg id="tree-svg"></svg>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Enunciado del problema -->
+        <div id="problem-statement" class="step visible">
+            <h1>Teorema de Bayes</h1>
+            <h2>Problema</h2>
+            <p>Un test tiene una precisión del <span id="sens-display">99%</span>, tanto para identificar correctamente los casos positivos como los negativos.</p>
+            <p>Si la prevalencia en la población es de <span id="prev-display">1</span> por cada <span id="prev-denom">1000</span>:</p>
+            <p><strong>¿Cuál es la probabilidad de que una persona que ha dado positivo en el test, tenga covid?</strong></p>
+        </div>
+
+        <!-- Explicación paso a paso -->
+        <div id="explanation-section">
+            <div class="step">
+                <h2>Aplicación del Teorema de Bayes</h2>
+                <p>Queremos calcular la probabilidad condicional: \( P(C|+) \)</p>
+            </div>
+            
+            <div class="step">
+                <p>El Teorema de Bayes relaciona esta probabilidad con cantidades conocidas:</p>
+                <div class="formula">
+                    \[ P(C|+) = \frac{P(C) \cdot P(+|C) }{P(+)} \]
+                </div>
+            </div>
+            
+            <div class="step highlight">
+                <p>Calculamos \( P(+) \) usando probabilidad total:</p>
+                <div class="formula">
+                    \[ P(+) = P(C) \cdot P(+|C) + P(\overline{C} \cdot ) P(+|\overline{C})\]
+                </div>
+            </div>
+            
+            <div class="step">
+                <p>Sustituyendo los valores:</p>
+                <div class="formula" id="total-prob-formula">
+                    \[ P(+) = (0.001) \cdot  (0.99)+  (0.999)\cdot (0.01) \]
+                    \[ P(+) = 0.00099 + 0.00999 = 0.01098 \]
+                </div>
+            </div>
+            
+            <div class="step highlight">
+                <p>Aplicando Bayes:</p>
+                <div class="formula" id="bayes-formula">
+                    \[ P(C|+) = \frac{0.001\cdot 0.99 }{0.01098} \]
+                    \[ P(C|+) = \frac{0.00099}{0.01098} \approx 0.0901 \]
+                </div>
+            </div>
+            
+            <div class="step" id="percentage-step">
+                <p>Convertimos a porcentaje:</p>
+                <div class="formula" id="percentage-formula">
+                    \[ P(C|+) \approx 9.01\% \]
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="result" id="final-result">
+                    Resultado final: <strong>9.01%</strong>
+                </div>
+                <p>Observación: Aunque la prueba es muy precisa (99%), cuando la condición es rara (1 en 1000), la mayoría de los positivos son falsos positivos.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos iniciales
+        let data = {
+            prevalence: 1,
+            sensitivity: 0.99,
+            specificity: 0.99,
+            complement: 0.999
+        };
+
+        // Estado de la aplicación
+        let currentStep = 0;
+        const steps = document.querySelectorAll('.step');
+        steps.forEach((step, index) => {
+            if (index > 0) step.classList.remove('visible');
+        });
+
+        // Elementos del DOM
+        const prevalenceSlider = document.getElementById('prevalence');
+        const prevalenceValue = document.getElementById('prevalence-value');
+        const sensitivitySlider = document.getElementById('sensitivity');
+        const sensitivityValue = document.getElementById('sensitivity-value');
+        const specificitySlider = document.getElementById('specificity');
+        const specificityValue = document.getElementById('specificity-value');
+        
+        const prevDisplay = document.getElementById('prev-display');
+        const sensDisplay = document.getElementById('sens-display');
+        
+        const totalProbFormula = document.getElementById('total-prob-formula');
+        const bayesFormula = document.getElementById('bayes-formula');
+        const percentageFormula = document.getElementById('percentage-formula');
+        const finalResult = document.getElementById('final-result');
+
+        // Función para actualizar todos los cálculos
+        function updateCalculations() {
+            // Calcular complemento
+            data.complement = 1 - (data.prevalence / 1000);
+            
+            // Actualizar displays
+            prevalenceValue.textContent = data.prevalence;
+            prevDisplay.textContent = data.prevalence;
+            sensitivityValue.textContent = `${Math.round(data.sensitivity * 100)}%`;
+            specificityValue.textContent = `${Math.round(data.specificity * 100)}%`;
+            sensDisplay.textContent = Math.round(data.sensitivity * 100);
+            
+            // Calcular probabilidad total P(+)
+            const pPosGivenC = data.sensitivity;
+            const pPosGivenNotC = 1 - data.specificity;
+            const pC = data.prevalence / 1000;
+            const pNotC = data.complement;
+            
+            const pPos = pPosGivenC * pC + pPosGivenNotC * pNotC;
+            const pPosGivenCTimesPC = pPosGivenC * pC;
+            const pCPos = pPosGivenCTimesPC / pPos;
+            
+            // Actualizar fórmulas
+            totalProbFormula.innerHTML = 
+                `\\[ P(+) = (${pPosGivenC.toFixed(2)}) \\times (${pC.toFixed(4)}) + (${pPosGivenNotC.toFixed(2)}) \\times (${pNotC.toFixed(4)}) \\]` +
+                `\\[ P(+) = ${(pPosGivenC * pC).toFixed(5)} + ${(pPosGivenNotC * pNotC).toFixed(5)} = ${pPos.toFixed(5)} \\]`;
+                
+            bayesFormula.innerHTML = 
+                `\\[ P(C|+) = \\frac{${pPosGivenC.toFixed(2)} \\times ${pC.toFixed(4)}}{${pPos.toFixed(5)}} \\]` +
+                `\\[ P(C|+) = \\frac{${(pPosGivenC * pC).toFixed(5)}}{${pPos.toFixed(5)}} \\approx ${(pCPos * 100).toFixed(2)}\\% \\]`;
+            
+            // Actualizar resultado en porcentaje
+            percentageFormula.innerHTML = 
+                `\\[ P(C|+) \\approx ${(pCPos * 100).toFixed(2)}\\% \\]`;
+                
+            // Actualizar resultado final
+            finalResult.innerHTML = 
+                `Resultado final: <strong>${(pCPos * 100).toFixed(2)}%</strong>`;
+            
+            // Reprocesar MathJax
+            if (window.MathJax) {
+                MathJax.typeset();
+            }
+            
+            // Actualizar el diagrama de árbol
+            updateTreeDiagram();
+        }
+
+        // Event listeners para los controles deslizantes
+        prevalenceSlider.addEventListener('input', function() {
+            data.prevalence = parseInt(this.value);
+            updateCalculations();
+        });
+        
+        sensitivitySlider.addEventListener('input', function() {
+            data.sensitivity = parseInt(this.value) / 100;
+            updateCalculations();
+        });
+        
+        specificitySlider.addEventListener('input', function() {
+            data.specificity = parseInt(this.value) / 100;
+            updateCalculations();
+        });
+        
+        // Event listener para el botón de siguiente paso
+        document.getElementById('next-step-btn').addEventListener('click', function() {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                steps[currentStep].classList.add('visible');
+                steps[currentStep].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+        
+        // =============================================
+        // Código para ventanas flotantes mejoradas
+        // =============================================
+        
+        // Configuración de ventanas
+        const controlsWindow = document.getElementById('controls-container');
+        const treeWindow = document.getElementById('tree-container');
+        
+        // Funciones para hacer ventanas arrastrables y que no salgan de la pantalla
+        function makeDraggable(windowElement) {
+            const header = windowElement.querySelector('.window-header');
+            let isDragging = false;
+            let offsetX, offsetY;
+            
+            header.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                offsetX = e.clientX - windowElement.getBoundingClientRect().left;
+                offsetY = e.clientY - windowElement.getBoundingClientRect().top;
+                windowElement.style.cursor = 'grabbing';
+                
+                // Guardar posición inicial
+                windowElement.dataset.initialLeft = windowElement.style.left;
+                windowElement.dataset.initialTop = windowElement.style.top;
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    // Calcular nueva posición
+                    let newLeft = e.clientX - offsetX;
+                    let newTop = e.clientY - offsetY;
+                    
+                    // Limitar para que no salga de la pantalla
+                    const maxLeft = window.innerWidth - windowElement.offsetWidth;
+                    const maxTop = window.innerHeight - windowElement.offsetHeight;
+                    
+                    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                    newTop = Math.max(0, Math.min(newTop, maxTop));
+                    
+                    windowElement.style.left = newLeft + 'px';
+                    windowElement.style.top = newTop + 'px';
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                windowElement.style.cursor = 'default';
+            });
+        }
+
+        // Función para ajustar posición inicial de ventanas
+        function adjustInitialPosition() {
+            const controlsWindow = document.getElementById('controls-container');
+            const treeWindow = document.getElementById('tree-container');
+            
+            // Ajustar controles
+            if (parseInt(controlsWindow.style.left) + controlsWindow.offsetWidth > window.innerWidth) {
+                controlsWindow.style.left = (window.innerWidth - controlsWindow.offsetWidth - 20) + 'px';
+            }
+            if (parseInt(controlsWindow.style.top) + controlsWindow.offsetHeight > window.innerHeight) {
+                controlsWindow.style.top = (window.innerHeight - controlsWindow.offsetHeight - 20) + 'px';
+            }
+            
+            // Ajustar diagrama
+            if (parseInt(treeWindow.style.left) < 0 || 
+                parseInt(treeWindow.style.left) + treeWindow.offsetWidth > window.innerWidth) {
+                treeWindow.style.left = '';
+                treeWindow.style.right = '20px';
+            }
+            if (parseInt(treeWindow.style.top) + treeWindow.offsetHeight > window.innerHeight) {
+                treeWindow.style.top = (window.innerHeight - treeWindow.offsetHeight - 20) + 'px';
+            }
+        }
+
+        // Configurar ventana de controles
+        document.getElementById('toggle-controls-btn').addEventListener('click', function() {
+            if (controlsWindow.style.display === 'none' || !controlsWindow.style.display) {
+                controlsWindow.style.display = 'block';
+                this.textContent = 'Ocultar Controles';
+                adjustInitialPosition();
+            } else {
+                controlsWindow.style.display = 'none';
+                this.textContent = 'Mostrar Controles';
+            }
+        });
+        
+        document.getElementById('controls-close').addEventListener('click', function() {
+            controlsWindow.style.display = 'none';
+            document.getElementById('toggle-controls-btn').textContent = 'Mostrar Controles';
+        });
+        
+        // Configurar ventana de diagrama
+        document.getElementById('toggle-tree-btn').addEventListener('click', function() {
+            if (treeWindow.style.display === 'none' || !treeWindow.style.display) {
+                treeWindow.style.display = 'block';
+                this.textContent = 'Ocultar Diagrama';
+                adjustInitialPosition();
+            } else {
+                treeWindow.style.display = 'none';
+                this.textContent = 'Mostrar Diagrama';
+            }
+        });
+        
+        document.getElementById('tree-close').addEventListener('click', function() {
+            treeWindow.style.display = 'none';
+            document.getElementById('toggle-tree-btn').textContent = 'Mostrar Diagrama';
+        });
+        
+        // Hacer ventanas arrastrables
+        makeDraggable(controlsWindow);
+        makeDraggable(treeWindow);
+        
+        // Ajustar posición cuando se redimensiona la ventana
+        window.addEventListener('resize', adjustInitialPosition);
+        
+        // =============================================
+        // Código para el diagrama de árbol con zoom/pan
+        // =============================================
+        
+        function updateTreeDiagram() {
+            const treeSvg = document.getElementById('tree-svg');
+            treeSvg.innerHTML = '';
+            
+            // Hacer el SVG más grande que el contenedor para permitir desplazamiento
+            const containerWidth = treeSvg.clientWidth;
+            const containerHeight = treeSvg.clientHeight;
+            const svgWidth = containerWidth * 2;  // Doble del ancho visible
+            const svgHeight = containerHeight * 2; // Doble del alto visible
+            
+            // Datos del árbol con valores actuales
+            const treeData = {
+                name: "",
+                children: [
+                    {
+                        name: `P(C\u0305) = ${data.complement.toFixed(4)}`,
+                        children: [
+                            { name: `P(+|C\u0305) = ${(1 - data.specificity).toFixed(2)}` },
+                            { name: `P(-|C\u0305) = ${data.specificity.toFixed(2)}` }
+                        ]
+                    },
+                    {
+                        name: `P(C) = ${(data.prevalence / 1000).toFixed(4)}`,
+                        children: [
+                            { name: `P(+|C) = ${data.sensitivity.toFixed(2)}` },
+                            { name: `P(-|C) = ${(1 - data.sensitivity).toFixed(2)}` }
+                        ]
+                    }
+                ]
+            };
+
+            // Crear un grupo para todo el árbol que podamos mover
+            const svg = d3.select(treeSvg)
+                .attr("width", svgWidth)
+                .attr("height", svgHeight)
+                .call(d3.zoom()
+                    .scaleExtent([0.5, 3]) // Límites de zoom
+                    .on("zoom", (event) => {
+                        g.attr("transform", event.transform);
+                    }))
+                .append("g");
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${svgWidth/4},${svgHeight/4})`); // Posición inicial centrada
+
+            const root = d3.hierarchy(treeData);
+
+            const treeLayout = d3.tree().size([svgHeight/2, svgWidth/2]);
+            treeLayout(root);
+
+            // Dibujar enlaces
+            g.selectAll(".link")
+                .data(root.links())
+                .enter()
+                .append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x))
+                .style("stroke", "#ccc")
+                .style("fill", "none");
+
+            // Dibujar nodos
+            const nodeGroup = g.selectAll(".node")
+                .data(root.descendants())
+                .enter()
+                .append("g")
+                .attr("class", "node")
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            nodeGroup.append("circle")
+                .attr("r", 5)
+                .style("fill", "#fff")
+                .style("stroke", "#000");
+
+            nodeGroup.append("text")
+                .attr("dy", ".35em")
+                .attr("x", d => d.children ? -10 : 10)
+                .style("text-anchor", d => d.children ? "end" : "start")
+                .text(d => d.data.name);
+                
+            // Reprocesar MathJax para renderizar las fórmulas LaTeX
+            if (window.MathJax) {
+                MathJax.typeset();
+            }
+        }
+        
+        // Inicializar cálculos y diagrama
+        updateCalculations();
+        adjustInitialPosition();
+    </script>
+</body>
+</html>
